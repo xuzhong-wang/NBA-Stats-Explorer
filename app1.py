@@ -78,12 +78,12 @@ selected_players = st.multiselect("👤 Select players to compare:", players, de
 # Dictionary mapping metric codes to human-readable names
 metric_names = {
     "PTS": "Points Per Game",
-    "TRB": "Total Rebounds",
-    "AST": "Assists",
-    "STL": "Steals",
-    "BLK": "Blocks",
-    "TOV": "Turnovers",
-    "FT": "Free Throws",
+    "TRB": "Total Rebounds Per Game",
+    "AST": "Assists Per Game",
+    "STL": "Steals Per Game",
+    "BLK": "Blocks Per Game",
+    "TOV": "Turnovers Per Game",
+    "FT": "Free Throws Per Game",
     "FG%": "Field Goal %",
     "3P%": "3-Point %",
     "2P%": "2-Point %",
