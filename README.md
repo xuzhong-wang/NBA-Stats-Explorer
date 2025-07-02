@@ -10,7 +10,7 @@ This Streamlit web app lets you explore and compare the performance of top NBA p
 
 - 🔍 Select and compare multiple NBA players
 - 📈 Visualize key stats like Points, Assists, BPM, PER, etc.
-- 📂 Based on clean, scraped data from Basketball-Reference
+- 📂 Based on clean, scraped data from [Basketball-Reference](https://www.basketball-reference.com/)
 
 ---
 
