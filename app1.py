@@ -10,29 +10,50 @@ st.set_page_config(page_title="NBA Player Stats Explorer", layout="centered")
 st.markdown(
     """
     <style>
-    /* Title style: centered, large, bold */
-    .big-title {
-        font-size: 40px !important;
-        font-weight: 800;
-        color: white;
-        text-align: center;
-        margin-bottom: 0.5rem;
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    @media (prefers-color-scheme: dark) {
+        .big-title {
+            font-size: 40px !important;
+            font-weight: 800;
+            color: white;
+            text-align: center;
+            margin-bottom: 0.5rem;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .description {
+            font-size: 18px;
+            color: #CCCCCC;
+            max-width: 700px;
+            line-height: 1.6;
+            text-align: justify;
+            margin-left: 0;
+            font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
     }
-    /* Description paragraph style: justified, gray, Inter font */
-    .description {
-        font-size: 18px;
-        color: #CCCCCC;
-        max-width: 700px;
-        line-height: 1.6;
-        text-align: justify;
-        margin-left: 0;
-        font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+
+    @media (prefers-color-scheme: light) {
+        .big-title {
+            font-size: 40px !important;
+            font-weight: 800;
+            color: black;
+            text-align: center;
+            margin-bottom: 0.5rem;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .description {
+            font-size: 18px;
+            color: #333333;
+            max-width: 700px;
+            line-height: 1.6;
+            text-align: justify;
+            margin-left: 0;
+            font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
     }
     </style>
     """,
     unsafe_allow_html=True
 )
+
 
 st.markdown('<div class="big-title">🏀 NBA Stats Explorer: 2016–2025</div>', unsafe_allow_html=True)
 st.markdown('<div class="description">This app explores and compares the performance of top NBA players across multiple seasons using a comprehensive blend of traditional and advanced metrics, which provides a fuller picture of player impact and contribution.</div>', unsafe_allow_html=True)
