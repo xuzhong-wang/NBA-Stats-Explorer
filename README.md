@@ -29,3 +29,17 @@ This Streamlit web app lets you explore and compare the performance of top NBA p
 **Xuzhong Wang**  
 MSc Economics, LSE  
 [GitHub Profile](https://github.com/xuzhong-wang)
+
+---
+
+## 📘 Disclaimer
+
+This project was created **solely for educational and personal learning purposes**.
+
+All data displayed here was originally sourced from [Basketball Reference](https://www.basketball-reference.com/), a property of Sports Reference LLC. 
+
+- No data is monetized, redistributed, or used to train AI models.
+- This project is not affiliated with, endorsed by, or officially connected to Basketball Reference or Sports Reference LLC in any way.
+- The scraping script and visualizations are used exclusively to practice Python, pandas, and Streamlit development.
+
+If requested by the data source provider, this repository can be modified or taken down.
