@@ -183,5 +183,4 @@ with st.expander("📘 Advanced Metrics Explained"):
     st.markdown("""
     WS estimates **how many team wins** a player contributed to based on their offensive and  
     defensive statistics.  
-    It splits into Offensive Win Shares and Defensive Win Shares, and totals can be compared across seasons.
     """)
