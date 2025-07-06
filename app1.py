@@ -134,3 +134,54 @@ if selected_players and selected_metric:
     st.pyplot(fig)
 else:
     st.warning("Please select at least one player and one metric.")
+    
+    
+# Draw another horizontal line
+st.markdown("---")
+
+# Add an expander for advanced metric explanations
+with st.expander("📘 Advanced Metrics Explained"):
+    st.markdown("#### 🧮 True Shooting Percentage (TS%)")
+    st.markdown("""
+    TS% accounts for a player's efficiency on **field goals, 3-point shots, and free throws**.  
+    It improves upon FG% by incorporating the value of 3-point shots and the impact of free throws.
+    """)
+    st.markdown("**Formula:**")
+    st.latex(r"\text{TS\%} = \frac{\text{Points}}{2 \times (\text{FGA} + 0.44 \times \text{FTA})}")
+    st.markdown("""
+    **Where:**  
+    - **FGA** = Field Goal Attempts  
+    - **FTA** = Free Throw Attempts  
+    """)
+    
+    st.markdown("#### 📦 Box Plus/Minus (BPM)")
+    st.markdown("""
+    BPM estimates a player's **overall impact per 100 possessions** relative to an average player.  
+    It uses box score stats and team performance while the player is on the court.
+    """)
+
+    st.markdown("#### ⚔️ Offensive Box Plus/Minus (OBPM)")
+    st.markdown("""
+    OBPM isolates a player's **offensive contribution**, measuring how many more (or fewer) points  
+    they generate per 100 possessions compared to the league average.
+    """)
+
+    st.markdown("#### 🛡️ Defensive Box Plus/Minus (DBPM)")
+    st.markdown("""
+    DBPM does the same as OBPM but focuses on **defensive impact**, estimating points saved  
+    per 100 possessions.
+    """)
+
+    st.markdown("#### 🧠 Player Efficiency Rating (PER)")
+    st.markdown("""
+    PER is a per-minute rating developed by John Hollinger to summarize **all box score contributions**  
+    into a single number. The league average is always set to **15.0**.  
+    It's highly correlated with usage and scoring, but may overvalue high-volume shooters.
+    """)
+
+    st.markdown("#### 🏆 Win Shares (WS)")
+    st.markdown("""
+    WS estimates **how many team wins** a player contributed to based on their offensive and  
+    defensive statistics.  
+    It splits into Offensive Win Shares and Defensive Win Shares, and totals can be compared across seasons.
+    """)
