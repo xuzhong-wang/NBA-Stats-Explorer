@@ -1,15 +1,14 @@
 """Streamlit entry point for the NBA Stats Explorer app.
 
-This module loads the cleaned player statistics and presents three views:
+This module loads the cleaned player statistics and presents two views:
 1. Metric trends for multiple players across seasons.
-2. Summary comparison of regular-season MVP vs. Finals MVP for a season.
-3. Advanced detail view for an individual player.
+2. Advanced detail view for an individual player.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict, Iterable, List, Optional, Tuple
+from typing import Dict, Iterable, List, Optional
 
 import altair as alt
 import pandas as pd
@@ -34,7 +33,7 @@ def configure_page() -> None:
     st.markdown(
         """
         Explore top NBA players across recent seasons using traditional and advanced metrics.
-        Use the sidebar to navigate between trend, summary, and detail views.
+        Use the sidebar to navigate between trend and player detail views.
         """
     )
 
@@ -78,27 +77,6 @@ def get_metric_names() -> MetricNameMap:
     }
 
 
-def get_award_lookup() -> Dict[str, Tuple[Optional[str], Optional[str]]]:
-    """Map each season to its regular-season MVP and Finals MVP.
-
-    Names must match the `Player` column so that statistics can be shown.
-    Missing data is represented by ``None`` and handled gracefully in the UI.
-    """
-
-    return {
-        "2015-16": ("Stephen Curry", "LeBron James"),
-        "2016-17": ("Russell Westbrook", "Kevin Durant"),
-        "2017-18": ("James Harden", "Kevin Durant"),
-        "2018-19": ("Giannis Antetokounmpo", "Kawhi Leonard"),
-        "2019-20": ("Giannis Antetokounmpo", "LeBron James"),
-        "2020-21": ("Nikola Jokić", "Giannis Antetokounmpo"),
-        "2021-22": ("Nikola Jokić", "Stephen Curry"),
-        "2022-23": ("Joel Embiid", "Nikola Jokić"),
-        "2023-24": ("Nikola Jokić", "Jaylen Brown"),
-        "2024-25": (None, None),
-    }
-
-
 # ---------------------------------------------------------------------------
 # Sidebar and layout helpers
 # ---------------------------------------------------------------------------
@@ -117,7 +95,7 @@ class SidebarSelections:
 
 
 def render_sidebar(df: pd.DataFrame, metric_names: MetricNameMap) -> SidebarSelections:
-    """Render sidebar controls used across the three main views."""
+    """Render sidebar controls used across the two main views."""
 
     seasons = sorted(df["Season"].unique())
     players = sorted(df["Player"].unique())
@@ -127,7 +105,7 @@ def render_sidebar(df: pd.DataFrame, metric_names: MetricNameMap) -> SidebarSele
         st.header("Navigation")
         view = st.radio(
             "Select view",
-            ["Metric trends", "MVP vs. Finals MVP", "Player detail"],
+            ["Metric trends", "Player detail"],
             index=0,
         )
 
@@ -200,63 +178,6 @@ def render_metric_trends(
 
     st.subheader("Metric trends")
     st.altair_chart(chart, use_container_width=True)
-
-
-def render_award_summary(
-    df: pd.DataFrame,
-    season: str,
-    awards: Dict[str, Tuple[Optional[str], Optional[str]]],
-    metric_names: MetricNameMap,
-) -> None:
-    """Show a side-by-side comparison of MVP and Finals MVP for the chosen season."""
-
-    st.subheader("Season summary: MVP vs. Finals MVP")
-    mvp, fmvp = awards.get(season, (None, None))
-
-    cols_to_show = ["PTS", "TRB", "AST", "TS%", "BPM", "WS", "PER"]
-    summary_labels = [metric_names[col] for col in cols_to_show]
-
-    def _player_row(player: Optional[str]) -> Optional[pd.Series]:
-        if not player:
-            return None
-        row = df[(df["Season"] == season) & (df["Player"] == player)]
-        return row.iloc[0] if not row.empty else None
-
-    mvp_row = _player_row(mvp)
-    fmvp_row = _player_row(fmvp)
-
-    col1, col2 = st.columns(2)
-    with col1:
-        _render_player_snapshot("Regular Season MVP", mvp, mvp_row, cols_to_show, summary_labels)
-    with col2:
-        _render_player_snapshot("Finals MVP", fmvp, fmvp_row, cols_to_show, summary_labels)
-
-    st.caption(
-        "Awards are mapped manually for each season. If a player is missing, it means the season's data"
-        " is not available in the dataset."
-    )
-
-
-def _render_player_snapshot(
-    title: str,
-    player: Optional[str],
-    row: Optional[pd.Series],
-    cols_to_show: List[str],
-    labels: List[str],
-) -> None:
-    """Render a card-like snapshot of player stats used in the summary view."""
-
-    st.markdown(f"### {title}")
-    if not player:
-        st.info("Award data not available for this season yet.")
-        return
-    if row is None:
-        st.warning(f"{player}'s stats for this season are not in the dataset.")
-        return
-
-    st.markdown(f"**{player}**")
-    metrics_df = pd.DataFrame({"Metric": labels, "Value": row[cols_to_show].values})
-    st.dataframe(metrics_df, use_container_width=True, hide_index=True)
 
 
 def render_player_detail(
@@ -378,7 +299,6 @@ def main() -> None:
     df = load_data()
     metric_names = get_metric_names()
     selections = render_sidebar(df, metric_names)
-    award_lookup = get_award_lookup()
 
     if selections.view == "Metric trends":
         render_metric_trends(
@@ -387,13 +307,6 @@ def main() -> None:
             metric=selections.trend_metric,
             metric_names=metric_names,
             theme=selections.chart_theme,
-        )
-    elif selections.view == "MVP vs. Finals MVP":
-        render_award_summary(
-            df=df,
-            season=selections.season,
-            awards=award_lookup,
-            metric_names=metric_names,
         )
     elif selections.view == "Player detail":
         render_player_detail(
