@@ -1,186 +1,324 @@
-# app1.py
-import streamlit as st
+"""Streamlit entry point for the NBA Stats Explorer app.
+
+This module loads the cleaned player statistics and presents two views:
+1. Metric trends for multiple players across seasons.
+2. Advanced detail view for an individual player.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import Dict, Iterable, List, Optional
+
+import altair as alt
 import pandas as pd
-import matplotlib.pyplot as plt
-import matplotlib.style as style
+import streamlit as st
 
-# Set page config
-st.set_page_config(page_title="NBA Player Stats Explorer", layout="centered")
 
-# CSS for page title and description with system theme adaptive color
-st.markdown(
-    """
-    <style>
-    @media (prefers-color-scheme: dark) {
-        .big-title {
-            font-size: 40px !important;
-            font-weight: 800;
-            color: white;
-            text-align: center;
-            margin-bottom: 0.5rem;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
-        .description {
-            font-size: 18px;
-            color: #CCCCCC;
-            max-width: 700px;
-            line-height: 1.6;
-            text-align: justify;
-            margin-left: 0;
-            font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
+# ---------------------------------------------------------------------------
+# Page setup and configuration
+# ---------------------------------------------------------------------------
+
+
+def configure_page() -> None:
+    """Configure Streamlit page defaults and base styling."""
+
+    st.set_page_config(
+        page_title="NBA Player Stats Explorer",
+        layout="wide",
+        page_icon="🏀",
+    )
+
+    st.title("NBA Stats Explorer: 2016–2025")
+    st.markdown(
+        """
+        Explore top NBA players across recent seasons using traditional and advanced metrics.
+        Use the sidebar to navigate between trend and player detail views.
+        """
+    )
+
+
+@st.cache_data
+def load_data() -> pd.DataFrame:
+    """Load the cleaned player statistics produced by the scraping notebook."""
+
+    return pd.read_csv("output/nba_selected_stats.csv")
+
+
+# ---------------------------------------------------------------------------
+# Data helpers
+# ---------------------------------------------------------------------------
+
+
+MetricNameMap = Dict[str, str]
+
+
+def get_metric_names() -> MetricNameMap:
+    """Readable labels for each metric column used in charts and tables."""
+
+    return {
+        "PTS": "Points Per Game",
+        "TRB": "Total Rebounds Per Game",
+        "AST": "Assists Per Game",
+        "STL": "Steals Per Game",
+        "BLK": "Blocks Per Game",
+        "TOV": "Turnovers Per Game",
+        "FT": "Free Throws Per Game",
+        "FG%": "Field Goal %",
+        "3P%": "3-Point %",
+        "2P%": "2-Point %",
+        "FT%": "Free Throw %",
+        "TS%": "True Shooting %",
+        "BPM": "Box Plus/Minus",
+        "OBPM": "Offensive Box Plus/Minus",
+        "DBPM": "Defensive Box Plus/Minus",
+        "PER": "Player Efficiency Rating",
+        "WS": "Win Shares",
     }
 
-    @media (prefers-color-scheme: light) {
-        .big-title {
-            font-size: 40px !important;
-            font-weight: 800;
-            color: black;
-            text-align: center;
-            margin-bottom: 0.5rem;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+
+# ---------------------------------------------------------------------------
+# Sidebar and layout helpers
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class SidebarSelections:
+    """Container for all sidebar-controlled state."""
+
+    view: str
+    season: str
+    trend_players: List[str]
+    trend_metric: str
+    chart_theme: str
+    detail_player: str
+
+
+def render_sidebar(df: pd.DataFrame, metric_names: MetricNameMap) -> SidebarSelections:
+    """Render sidebar controls used across the two main views."""
+
+    seasons = sorted(df["Season"].unique())
+    players = sorted(df["Player"].unique())
+    default_players = ["LeBron James", "Stephen Curry", "Kevin Durant"]
+
+    with st.sidebar:
+        st.header("Navigation")
+        view = st.radio(
+            "Select view",
+            ["Metric trends", "Player detail"],
+            index=0,
+        )
+
+        st.subheader("Filters")
+        season = st.selectbox("Season", seasons, index=len(seasons) - 1)
+
+        st.subheader("Chart options")
+        chart_theme = st.selectbox("Theme", ["Streamlit", "Dark"], index=0)
+
+        st.divider()
+        st.subheader("Player selection")
+        trend_players = st.multiselect(
+            "Compare players",
+            players,
+            default=[p for p in default_players if p in players],
+            help="Used in the metric trend view",
+        )
+        detail_player = st.selectbox("Detail view player", players)
+        trend_metric = st.selectbox("Metric for trend view", list(metric_names.keys()))
+
+    return SidebarSelections(
+        view=view,
+        season=season,
+        trend_players=trend_players,
+        trend_metric=trend_metric,
+        chart_theme=chart_theme,
+        detail_player=detail_player,
+    )
+
+
+# ---------------------------------------------------------------------------
+# View renderers
+# ---------------------------------------------------------------------------
+
+
+def render_metric_trends(
+    df: pd.DataFrame,
+    players: Iterable[str],
+    metric: str,
+    metric_names: MetricNameMap,
+    theme: str,
+) -> None:
+    """Display a multi-player line chart for the selected metric across seasons."""
+
+    if not players:
+        st.warning("Please select at least one player to see the trend chart.")
+        return
+
+    filtered = df[df["Player"].isin(players)]
+    if filtered.empty:
+        st.info("No data available for the selected players.")
+        return
+
+    color_scheme = "category10" if theme == "Streamlit" else "dark2"
+
+    chart = (
+        alt.Chart(filtered)
+        .mark_line(point=True)
+        .encode(
+            x=alt.X("Season:N", sort=sorted(df["Season"].unique()), title="Season"),
+            y=alt.Y(metric, title=metric_names.get(metric, metric), scale=alt.Scale(zero=False)),
+            color=alt.Color("Player:N", title="Player", scale=alt.Scale(scheme=color_scheme)),
+            tooltip=["Player", "Season", alt.Tooltip(metric, format=".2f")],
+        )
+        .properties(
+            title=f"{metric_names.get(metric, metric)} by Season",
+            height=400,
+        )
+    )
+
+    st.subheader("Metric trends")
+    st.altair_chart(chart, use_container_width=True)
+
+
+def render_player_detail(
+    df: pd.DataFrame, player: str, season: str, metric_names: MetricNameMap
+) -> None:
+    """Show advanced metrics for a single player with focus on the selected season."""
+
+    st.subheader("Player detail and advanced stats")
+    player_df = df[df["Player"] == player].sort_values("Season")
+
+    if player_df.empty:
+        st.warning("No data available for the selected player.")
+        return
+
+    season_row = player_df[player_df["Season"] == season]
+    selected_row = season_row.iloc[0] if not season_row.empty else None
+
+    if selected_row is None:
+        st.info("Selected season is not available for this player. Showing all seasons instead.")
+
+    columns_to_display = ["Season", "Team", "Position", "PTS", "TRB", "AST", "TS%", "BPM", "OBPM", "DBPM", "PER", "WS"]
+    st.dataframe(
+        player_df[columns_to_display],
+        use_container_width=True,
+        hide_index=True,
+    )
+
+    st.markdown("#### Advanced metrics for selected season")
+    if selected_row is None:
+        st.info("No advanced metrics available for this season.")
+        return
+
+    advanced_cols = ["TS%", "BPM", "OBPM", "DBPM", "PER", "WS"]
+    advanced_labels = [metric_names[col] for col in advanced_cols]
+    adv_df = pd.DataFrame(
+        {
+            "Metric": advanced_labels,
+            "Value": [selected_row[col] for col in advanced_cols],
         }
-        .description {
-            font-size: 18px;
-            color: #333333;
-            max-width: 700px;
-            line-height: 1.6;
-            text-align: justify;
-            margin-left: 0;
-            font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
-    }
-    </style>
-    """,
-    unsafe_allow_html=True
-)
+    )
 
-# Display page title and description
-st.markdown('<div class="big-title">🏀 NBA Stats Explorer: 2016–2025</div>', unsafe_allow_html=True)
-st.markdown(
-    '<div class="description">This app explores and compares the performance of top NBA players across multiple seasons using a comprehensive blend of traditional and advanced metrics, which provides a fuller picture of player impact and contribution.</div>', 
-    unsafe_allow_html=True
-)
+    bar_chart = (
+        alt.Chart(adv_df)
+        .mark_bar()
+        .encode(
+            x=alt.X("Metric", sort=None),
+            y=alt.Y("Value", title="Value"),
+            tooltip=["Metric", alt.Tooltip("Value", format=".2f")],
+        )
+        .properties(height=350)
+    )
 
-# Load player stats data from CSV file
-df = pd.read_csv("output/nba_selected_stats.csv")
+    st.altair_chart(bar_chart, use_container_width=True)
 
-# Draw a horizontal separator line
-st.markdown("---")
 
-# Get unique player list sorted alphabetically
-players = sorted(df["Player"].unique())
-default_players = ["LeBron James", "Stephen Curry", "Kevin Durant"]
+def render_metric_explanations() -> None:
+    """Expandable section explaining advanced metrics for new users."""
 
-# Multi-select box for choosing players to compare
-selected_players = st.multiselect("👤 Select players to compare:", players, default=default_players)
+    with st.expander("📘 Advanced Metrics Explained"):
+        st.markdown("#### 🧮 True Shooting Percentage (TS%)")
+        st.markdown(
+            """
+            TS% accounts for a player's efficiency on field goals, 3-point shots, and free throws.
+            It improves upon FG% by incorporating the value of 3-point shots and the impact of free throws.
+            """
+        )
+        st.latex(r"\text{TS\%} = \frac{\text{Points}}{2 \times (\text{FGA} + 0.44 \times \text{FTA})}")
 
-# Dictionary mapping metric codes to human-readable names
-metric_names = {
-    "PTS": "Points Per Game",
-    "TRB": "Total Rebounds Per Game",
-    "AST": "Assists Per Game",
-    "STL": "Steals Per Game",
-    "BLK": "Blocks Per Game",
-    "TOV": "Turnovers Per Game",
-    "FT": "Free Throws Per Game",
-    "FG%": "Field Goal %",
-    "3P%": "3-Point %",
-    "2P%": "2-Point %",
-    "FT%": "Free Throw %",
-    "TS%": "True Shooting %",
-    "BPM": "Box Plus/Minus",
-    "OBPM": "Offensive Box Plus/Minus",
-    "DBPM": "Defensive Box Plus/Minus",
-    "PER": "Player Efficiency Rating",
-    "WS": "Win Shares"
-}
-metrics = list(metric_names.keys())
+        st.markdown("#### 📦 Box Plus/Minus (BPM)")
+        st.markdown(
+            """
+            BPM estimates a player's overall impact per 100 possessions relative to an average player.
+            It uses box score stats and team performance while the player is on the court.
+            """
+        )
 
-# Dropdown for selecting metric to visualize
-selected_metric = st.selectbox("📈 Select a metric to visualize:", metrics)
+        st.markdown("#### ⚔️ Offensive Box Plus/Minus (OBPM)")
+        st.markdown(
+            """
+            OBPM isolates a player's offensive contribution, measuring how many more (or fewer) points
+            they generate per 100 possessions compared to the league average.
+            """
+        )
 
-# Allow user to choose chart theme for matplotlib: Light or Dark
-theme = st.selectbox("Choose theme for charts:", ["Light", "Dark"])
+        st.markdown("#### 🛡️ Defensive Box Plus/Minus (DBPM)")
+        st.markdown(
+            """
+            DBPM does the same as OBPM but focuses on defensive impact, estimating points saved
+            per 100 possessions.
+            """
+        )
 
-# Apply matplotlib styles and colors according to chosen theme
-if theme == "Dark":
-    style.use('dark_background')
-    title_color = 'white'
-    label_color = 'white'
-    grid_color = 'gray'
-    tick_color = 'white'
-else:
-    style.use('default')
-    title_color = 'black'
-    label_color = 'black'
-    grid_color = 'lightgray'
-    tick_color = 'black'
+        st.markdown("#### 🧠 Player Efficiency Rating (PER)")
+        st.markdown(
+            """
+            PER is a per-minute rating developed by John Hollinger to summarize all box score contributions
+            into a single number. The league average is always set to 15.0.
+            """
+        )
 
-# Plot the data with matplotlib and display on Streamlit
-if selected_players and selected_metric:
-    fig, ax = plt.subplots(figsize=(8, 4))
-    for player in selected_players:
-        player_data = df[df["Player"] == player]
-        ax.plot(player_data["Season"], player_data[selected_metric], marker="o", label=player)
+        st.markdown("#### 🏆 Win Shares (WS)")
+        st.markdown(
+            """
+            WS estimates how many team wins a player contributed to based on their offensive and
+            defensive statistics.
+            """
+        )
 
-    ax.set_title(f"{metric_names[selected_metric]} by Season", fontsize=16, color=title_color)
-    ax.set_xlabel("Season", fontsize=12, color=label_color)
-    ax.set_ylabel(metric_names[selected_metric], fontsize=12, color=label_color)
-    ax.legend(title="Player", loc="center left", bbox_to_anchor=(1.02, 0.5), fontsize=10)
-    ax.grid(True, linestyle="--", alpha=0.5, color=grid_color)
-    plt.xticks(rotation=45, color=tick_color)
-    plt.yticks(color=tick_color)
-    st.pyplot(fig)
-else:
-    st.warning("Please select at least one player and one metric.")
-    
-    
-# Draw another horizontal line
-st.markdown("---")
 
-# Add an expander for advanced metric explanations
-with st.expander("📘 Advanced Metrics Explained"):
-    st.markdown("#### 🧮 True Shooting Percentage (TS%)")
-    st.markdown("""
-    TS% accounts for a player's efficiency on **field goals, 3-point shots, and free throws**.  
-    It improves upon FG% by incorporating the value of 3-point shots and the impact of free throws.
-    """)
-    st.markdown("**Formula:**")
-    st.latex(r"\text{TS\%} = \frac{\text{Points}}{2 \times (\text{FGA} + 0.44 \times \text{FTA})}")
-    st.markdown("""
-    **Where:**  
-    - **FGA** = Field Goal Attempts  
-    - **FTA** = Free Throw Attempts  
-    """)
-    
-    st.markdown("#### 📦 Box Plus/Minus (BPM)")
-    st.markdown("""
-    BPM estimates a player's **overall impact per 100 possessions** relative to an average player.  
-    It uses box score stats and team performance while the player is on the court.
-    """)
+# ---------------------------------------------------------------------------
+# Main app orchestration
+# ---------------------------------------------------------------------------
 
-    st.markdown("#### ⚔️ Offensive Box Plus/Minus (OBPM)")
-    st.markdown("""
-    OBPM isolates a player's **offensive contribution**, measuring how many more (or fewer) points  
-    they generate per 100 possessions compared to the league average.
-    """)
 
-    st.markdown("#### 🛡️ Defensive Box Plus/Minus (DBPM)")
-    st.markdown("""
-    DBPM does the same as OBPM but focuses on **defensive impact**, estimating points saved  
-    per 100 possessions.
-    """)
+def main() -> None:
+    """Load data, collect sidebar input, and route to the active view."""
 
-    st.markdown("#### 🧠 Player Efficiency Rating (PER)")
-    st.markdown("""
-    PER is a per-minute rating developed by John Hollinger to summarize **all box score contributions**  
-    into a single number. The league average is always set to **15.0**.  
-    It's highly correlated with usage and scoring, but may overvalue high-volume shooters.
-    """)
+    configure_page()
+    df = load_data()
+    metric_names = get_metric_names()
+    selections = render_sidebar(df, metric_names)
 
-    st.markdown("#### 🏆 Win Shares (WS)")
-    st.markdown("""
-    WS estimates **how many team wins** a player contributed to based on their offensive and  
-    defensive statistics.  
-    """)
+    if selections.view == "Metric trends":
+        render_metric_trends(
+            df=df,
+            players=selections.trend_players,
+            metric=selections.trend_metric,
+            metric_names=metric_names,
+            theme=selections.chart_theme,
+        )
+    elif selections.view == "Player detail":
+        render_player_detail(
+            df=df,
+            player=selections.detail_player,
+            season=selections.season,
+            metric_names=metric_names,
+        )
+
+    st.divider()
+    render_metric_explanations()
+
+
+if __name__ == "__main__":
+    main()
